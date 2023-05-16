@@ -1,10 +1,40 @@
-﻿<h3>ConfigurePizzaDialog</h3>
+﻿@inject HttpClient HttpClient
+
+<h3>ConfigurePizzaDialog</h3>
 
 @code {
 
     [Parameter]
     public Pizza Pizza { get; set; }
 
+    List<Topping> Toppings;
+
+    protected async override Task OnInitializedAsync()
+    {
+        Toppings = await HttpClient.GetFromJsonAsync<List<Topping>>("toppings");
+    }
+
+    void AddTopping(Topping topping)
+    {
+        if (Pizza.Toppings.Find(pt => pt.Topping == topping) == null)
+        {
+            Pizza.Toppings.Add(new PizzaTopping() { Topping = topping });
+        }
+    }
+
+    void RemoveTopping(Topping topping)
+    {
+        Pizza.Toppings.RemoveAll(pt => pt.Topping == topping);
+    }
+
+    void ToppingSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse((string)e.Value, out var index) && index >= 0)
+        {
+            AddTopping(Toppings[index]);
+
+        }
+    }
 }
 
 <div class="dialog-container">
@@ -22,15 +52,55 @@
                        max="@Pizza.MaximumSize"
                        step="@Pizza.IncrementSize"
                        value="@Pizza.Size"
-
-                       @onchange="@((ChangeEventArgs e)=> Pizza.Size = int.Parse((string)e.Value))"
-                       
-                       />
+                       @onchange="@((ChangeEventArgs e)=> Pizza.Size = int.Parse((string)e.Value))" />
 
                 <span class="size-label">
                     @(Pizza.Size) cm ($@(Pizza.GetFormattedTotalPrice()))
                 </span>
             </div>
+
+            <div>
+                <label>Complementos adicionales:</label>
+                @if (Toppings == null)
+                {
+                    <select class="custom-select" disabled>
+                        <option>(Cargando...)</option>
+                    </select>
+                }
+                else if (Pizza.Toppings.Count >= 6)
+                {
+                    <div>(máximo alcanzado)</div>
+                }
+                else
+                {
+                    <select class="custom-select" @onchange="@ToppingSelected">
+                        <option value="-1" disabled selected>(selecciona)</option>
+                        @for (var i = 0; i < Toppings.Count; i++)
+                        {
+                            <option value="@i">
+                                @Toppings[i].Name - ($@(Toppings[i].GetFormattedPrice()))
+                            </option>
+                        }
+                    </select>
+                }
+            </div>
+
+            <div class="toppings">
+                @foreach (var topping in Pizza.Toppings)
+                {
+                    <div class="topping">
+                        @topping.Topping.Name
+                        <span class="topping-price">
+                            @topping.Topping.GetFormattedPrice()
+                        </span>
+                        <button type="button" class="delete-topping"
+                                @onclick="@(() => RemoveTopping(topping.Topping))">
+                            x
+                        </button>
+                    </div>
+                }
+            </div>
+
         </form>
 
         <div class="dialog-buttons">
@@ -45,3 +115,4 @@
         </div>
     </div>
 </div>
+
